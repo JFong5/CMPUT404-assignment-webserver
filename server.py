@@ -77,7 +77,6 @@ class MyWebServer(socketserver.BaseRequestHandler):
                 if "index.html" in ListDirectoryFiles:
                     path = os.path.join(path, 'index.html')
                 
-                print(path)
                 #Checks if index.html is in the list directory
                 if "index.html" not in ListDirectoryFiles: #Give a Error 404
                     output = httpVersion + " " + error404 + "\r\n"
@@ -98,11 +97,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
             if httpPath.endswith(".css"):
                 mimetype = "text/css"
                 output = httpVersion + " " + ok200 + "\r\n" + "Content-Type: " + mimetype + "\r\n\r\n"
-                print(output)
             else:
                 mimetype = "text/html"
                 output = httpVersion + " " +ok200 + "\r\n" + "Content-Type: " + mimetype + "\r\n\r\n"
-                print(output)
             
             #Send encoded out put
             self.request.send(output.encode("utf-8"))
