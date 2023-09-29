@@ -33,12 +33,12 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
+        #print ("Got a request of: %s\n" % self.data)
         #self.request.sendall(bytearray("OK",'utf-8'))
 
-        #Establish useful variables such as mimes dictionary, http 200 ok response, etc
-        directory = "./www"
-        mimesDic = {".html": "text/html", ".css": "text/css"}
+        #Establish useful variables such as allowed extentions, http 200 ok response, etc
+        directory = "/www"
+        allowedExtensions = [".html", ".css", ".js"]
         
         ok200 = "200 OK"
         error404 = "404 Not FOUND"
@@ -47,47 +47,72 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
 
         #Split the lines of the data and get the HTTP command, the HTTP path and the HTTP version
-        dataList = self.data.decode('utf-8').splitlines()
-        requestData = dataList[0].split(" ")
+        dataList = self.data.decode('utf-8')
+        data = dataList.splitlines()
         
-        #Assign variables to designated request data
+        requestData = data[0].split(" ")
+
+        #Assign request data to designated variables
         cmd = requestData[0] #GET
         httpPath = requestData[1] #/
         httpVersion = requestData[2] #HTTP/1.1
-        
-        print("Command:", requestData[0])
-        print("Path:", requestData[1])
-        print("Version:", requestData[2])
-        print("")
 
-        #Check if the HTTP Command is GET
-        if (cmd != "GET"): #Give 405 Error if cmd != GET
-            response = httpVersion + " " + error405 + "\r\n"
-            self.request.send(response.encode("utf-8"))
-        
-        else:
-            
-            #Checks if the path is a file (.html, .css, .js )
-            path = directory + os.path.normpath(httpPath) #/.www/ 
-            fileExtension = os.path.splitext(httpPath)[1]
+        #Check if HTTP command is GET
+        if cmd == "GET": 
+            #Checks if the httpPath's ends with the allowed extention
+            if not httpPath.endswith(tuple(allowedExtensions)) and not httpPath.endswith("/"):
+                #Give Error 303 if httpPath doesn't end with the allowed Extensions
+                output = httpVersion + " " + error301 + "\r\n" + "Location: " + httpPath + "/\r\n"
+                self.request.send(output.encode("utf-8"))
+                return
 
-            print(fileExtension)
-            print(mimesDic.get(fileExtension))
-            print("")
-
-            #Check if the path is a file
-            if os.path.isfile(path):
-                print("This is a file\n")
+            #establish path
+            path = os.getcwd() + directory + httpPath #./www/ 
 
             #Checks if the path is a directory
-            elif os.path.isdir(path):
-                print("Directory/Root")
-                print("INDEX EXISTS", os.path.isfile(path + "index.html"))
-                print(path + "index.html")
-
-                ListDirectoryFiles = os.listdir(path)
-                print(ListDirectoryFiles)
-                print("HTTP PATHHH", httpPath)
+            if os.path.isdir(path):
+                ListDirectoryFiles = os.listdir(path) #list directories
+                         
+                #Checks if the index.html is in the Directory
+                if "index.html" in ListDirectoryFiles:
+                    path = os.path.join(path, 'index.html')
+                
+                print(path)
+                #Checks if index.html is in the list directory
+                if "index.html" not in ListDirectoryFiles: #Give a Error 404
+                    output = httpVersion + " " + error404 + "\r\n"
+                    self.request.send(output.encode("utf-8"))
+                
+            #Try to open and read file to get htmlData
+            try:
+                file = open(path, "rb")
+                htmlData = file.read()
+                file.close()
+                    
+            except FileNotFoundError: #If file not found, give 404 error
+                output = httpVersion + " " + error404 + "\r\n"
+                self.request.send(output.encode("utf-8"))
+                return
+            
+            #Check if the httpPath endswith .css
+            if httpPath.endswith(".css"):
+                mimetype = "text/css"
+                output = httpVersion + " " + ok200 + "\r\n" + "Content-Type: " + mimetype + "\r\n\r\n"
+                print(output)
+            else:
+                mimetype = "text/html"
+                output = httpVersion + " " +ok200 + "\r\n" + "Content-Type: " + mimetype + "\r\n\r\n"
+                print(output)
+            
+            #Send encoded out put
+            self.request.send(output.encode("utf-8"))
+            self.request.sendall(htmlData)
+        
+        #Check if the HTTP Command is GET
+        else: #Give Error 405 if cmd != GET
+            output = httpVersion + " " + error405 + "\r\n"
+            self.request.send(output.encode("utf-8"))
+            return
 
 
 if __name__ == "__main__":
